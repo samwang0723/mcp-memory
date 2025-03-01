@@ -76,6 +76,8 @@ export class MemoryService {
       created: newMemory.created,
       updated: newMemory.updated,
       metadata: metadataStr,
+      // Include title directly if it exists
+      ...(newMemory.title ? { title: newMemory.title } : {}),
       ...this.extractSpecificProperties(newMemory),
     };
     
@@ -149,19 +151,25 @@ export class MemoryService {
     `;
     
     try {
+      console.log(`Retrieving memory with ID: ${id}`);
       const result = await this.graph.query(query, { params: { id } }) as RedisGraphQueryResult;
       
       // Log the entire result structure for debugging
-      console.debug('Full Redis Graph query result:', JSON.stringify(result, null, 2));
+      console.debug('Full Redis Graph query result structure:', JSON.stringify(result, null, 2));
       
       if (!result.data || result.data.length === 0) {
         console.log(`No memory found with ID: ${id}`);
         return null;
       }
       
+      // Log the first row structure
+      console.debug('First row structure:', JSON.stringify(result.data[0], null, 2));
+      
       try {
         // The Redis Graph result structure has data as an array of objects
-        return this.parseNodeResult(result.data[0]);
+        const memory = this.parseNodeResult(result.data[0]);
+        console.debug('Parsed memory:', JSON.stringify(memory, null, 2));
+        return memory;
       } catch (parseError: any) {
         console.error(`Error parsing node result for ID ${id}:`, parseError);
         console.error('Node data:', JSON.stringify(result.data[0], null, 2));
@@ -221,28 +229,45 @@ export class MemoryService {
       ${limit}
     `;
     
+    console.log('Executing search query:', query);
+    console.log('With parameters:', JSON.stringify(params, null, 2));
+    
     try {
       const result = await this.graph.query(query, { params }) as RedisGraphQueryResult;
       
       // Log the search result for debugging
-      console.debug('Search memories result:', JSON.stringify(result, null, 2));
+      console.debug('Search memories result structure:', JSON.stringify(result, null, 2));
       
       if (!result.data) {
+        console.log('No data returned from search query');
         return [];
       }
       
+      console.log(`Found ${result.data.length} results in the search query`);
+      
       const memories: MemoryNode[] = [];
       
-      for (const row of result.data) {
+      for (let i = 0; i < result.data.length; i++) {
         try {
+          const row = result.data[i];
+          console.debug(`Processing result row ${i}:`, JSON.stringify(row, null, 2));
+          
           const memory = this.parseNodeResult(row);
+          
+          // Verify the memory has an ID before adding it
+          if (!memory.id) {
+            console.error(`Memory at index ${i} has no ID:`, JSON.stringify(memory, null, 2));
+            continue;
+          }
+          
           memories.push(memory);
         } catch (parseError: any) {
-          console.warn(`Failed to parse memory node in search results: ${parseError.message}`);
+          console.warn(`Failed to parse memory node at index ${i} in search results: ${parseError.message}`);
           // Continue with other results
         }
       }
       
+      console.log(`Successfully parsed ${memories.length} memories from search results`);
       return memories;
     } catch (error) {
       console.error('Failed to search memories:', error);
@@ -388,6 +413,9 @@ export class MemoryService {
   private extractSpecificProperties(memory: MemoryNode): Record<string, any> {
     const properties: Record<string, any> = {};
     
+    // First, add common properties that should be included for all memory types
+    // Note: title is now handled directly in createMemory, so we don't need to include it here
+    
     switch (memory.type) {
       case MemoryNodeType.CONVERSATION:
         const conversationMemory = memory as any;
@@ -411,9 +439,7 @@ export class MemoryService {
         
       case MemoryNodeType.TASK:
         const taskMemory = memory as any;
-        if (taskMemory.title) {
-          properties.title = taskMemory.title;
-        }
+        // Title is now handled in createMemory
         if (taskMemory.status) {
           properties.status = taskMemory.status;
         }
@@ -424,9 +450,7 @@ export class MemoryService {
         
       case MemoryNodeType.ISSUE:
         const issueMemory = memory as any;
-        if (issueMemory.title) {
-          properties.title = issueMemory.title;
-        }
+        // Title is now handled in createMemory
         if (issueMemory.severity) {
           properties.severity = issueMemory.severity;
         }
@@ -463,9 +487,7 @@ export class MemoryService {
         
       case MemoryNodeType.TODO:
         const todoMemory = memory as any;
-        if (todoMemory.title) {
-          properties.title = todoMemory.title;
-        }
+        // Title is now handled in createMemory
         if (todoMemory.completed !== undefined) {
           properties.completed = todoMemory.completed;
         }
@@ -498,7 +520,20 @@ export class MemoryService {
    */
   private parseNodeResult(node: any): MemoryNode {
     try {
-      const properties = node.properties || {};
+      // Check if node is an array (Redis Graph sometimes returns arrays)
+      // If it's an array, the first element should be the node
+      const nodeData = Array.isArray(node) ? node[0] : node;
+      
+      // Handle case where node is nested under 'n' property (common in Redis Graph results)
+      const nodeObject = nodeData.n || nodeData;
+      
+      // Extract properties - Redis Graph might nest them under a 'properties' field
+      // or directly on the node object
+      const properties = nodeObject.properties || nodeObject || {};
+      
+      // Log the node structure for debugging
+      console.debug('Node structure in parseNodeResult:', JSON.stringify(nodeData, null, 2));
+      console.debug('Properties extracted:', JSON.stringify(properties, null, 2));
       
       // Parse metadata safely
       let metadata = {};
@@ -509,6 +544,11 @@ export class MemoryService {
       } catch (error: any) {
         console.error('Error parsing metadata:', error);
         metadata = {};
+      }
+      
+      // Ensure we have an ID
+      if (!properties.id) {
+        console.error('Missing ID in node properties:', properties);
       }
       
       return {

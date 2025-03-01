@@ -226,13 +226,19 @@ function registerSearchMemoriesTool(server: McpServer) {
         ];
         
         // Add summary of each memory
-        memories.forEach(memory => {
+        memories.forEach((memory, index) => {
+          // Ensure we have an ID
+          if (!memory.id) {
+            console.error(`Memory at index ${index} is missing ID:`, JSON.stringify(memory, null, 2));
+          }
+          
           const title = memory.title || memory.name || '';
           const preview = memory.content ? memory.content.substring(0, 50) + (memory.content.length > 50 ? '...' : '') : '';
+          const id = memory.id || 'undefined';
           
           responseContent.push({
             type: "text" as const,
-            text: `- ${memory.type}: ${title ? title + ' - ' : ''}${preview} (ID: ${memory.id})`,
+            text: `- ${memory.type}: ${title ? title + ' - ' : ''}${preview} (ID: ${id})`,
           });
         });
         
