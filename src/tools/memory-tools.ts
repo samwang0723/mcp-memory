@@ -55,16 +55,35 @@ function registerCreateMemoryTool(server: McpServer) {
       title: z.string().optional().describe('Title for the memory'),
       metadata: z.record(z.any()).optional().describe('Additional metadata for the memory'),
     },
-    async (params, extra) => {
+    async (params) => {
       try {
         const { type, content, title, metadata } = params;
+        console.log('Creating memory with params:', JSON.stringify(params, null, 2));
+        
+        // Validate metadata is a proper object before passing it
+        let validatedMetadata = {};
+        if (metadata) {
+          try {
+            // If metadata is a string, try to parse it
+            if (typeof metadata === 'string') {
+              validatedMetadata = JSON.parse(metadata);
+            } else {
+              validatedMetadata = metadata;
+            }
+          } catch (error) {
+            console.error('Invalid metadata format:', error);
+            // Continue with empty metadata
+          }
+        }
         
         const memory = await memoryService.createMemory({
           type,
           content,
           title,
-          metadata: metadata || {},
+          metadata: validatedMetadata,
         });
+        
+        console.log('Memory created successfully:', JSON.stringify(memory, null, 2));
         
         return {
           content: [
@@ -73,7 +92,6 @@ function registerCreateMemoryTool(server: McpServer) {
               text: `Successfully created ${type} memory with ID: ${memory.id}`,
             }
           ],
-          memory,
         };
       } catch (error) {
         console.error('Error creating memory:', error);
@@ -84,7 +102,6 @@ function registerCreateMemoryTool(server: McpServer) {
               text: `Failed to create memory: ${(error as Error).message}`,
             }
           ],
-          isError: true,
         };
       }
     }
@@ -102,9 +119,11 @@ function registerRetrieveMemoryTool(server: McpServer) {
     },
     async ({ id }, extra) => {
       try {
+        console.log('Retrieving memory with ID:', id);
         const memory = await memoryService.getMemoryById(id);
         
         if (!memory) {
+          console.log('Memory not found with ID:', id);
           return {
             content: [
               {
@@ -112,18 +131,38 @@ function registerRetrieveMemoryTool(server: McpServer) {
                 text: `Memory not found with ID: ${id}`,
               }
             ],
-            isError: true,
           };
         }
+        
+        console.log('Memory retrieved successfully:', JSON.stringify(memory, null, 2));
+        
+        // Format the memory data for display
+        const memoryDetails = [
+          `Type: ${memory.type}`,
+          `ID: ${memory.id}`,
+          `Created: ${new Date(memory.created).toISOString()}`,
+          `Updated: ${new Date(memory.updated).toISOString()}`,
+        ];
+        
+        // Add title if it exists
+        if (memory.title) {
+          memoryDetails.unshift(`Title: ${memory.title}`);
+        }
+        
+        // Add content
+        memoryDetails.push(`Content: ${memory.content}`);
         
         return {
           content: [
             {
               type: "text" as const,
               text: `Retrieved memory of type ${memory.type}`,
+            },
+            {
+              type: "text" as const,
+              text: memoryDetails.join('\n'),
             }
           ],
-          memory,
         };
       } catch (error) {
         console.error('Error retrieving memory:', error);
@@ -134,7 +173,6 @@ function registerRetrieveMemoryTool(server: McpServer) {
               text: `Failed to retrieve memory: ${(error as Error).message}`,
             }
           ],
-          isError: true,
         };
       }
     }
@@ -160,9 +198,10 @@ function registerSearchMemoriesTool(server: McpServer) {
       ]).optional().describe('Filter by memory type'),
       keyword: z.string().optional().describe('Search keyword in content or title'),
     },
-    async (params, extra) => {
+    async (params) => {
       try {
         const { type, keyword } = params;
+        console.log('Searching memories with params:', JSON.stringify(params, null, 2));
         
         const criteria = {
           type,
@@ -177,6 +216,7 @@ function registerSearchMemoriesTool(server: McpServer) {
         };
         
         const memories = await memoryService.searchMemories(criteria, options);
+        console.log(`Found ${memories.length} memories`);
         
         const responseContent = [
           {
@@ -187,16 +227,17 @@ function registerSearchMemoriesTool(server: McpServer) {
         
         // Add summary of each memory
         memories.forEach(memory => {
+          const title = memory.title || memory.name || '';
+          const preview = memory.content ? memory.content.substring(0, 50) + (memory.content.length > 50 ? '...' : '') : '';
+          
           responseContent.push({
             type: "text" as const,
-            text: `- ${memory.type}: ${(memory as any).title || (memory as any).name || memory.content.substring(0, 50)}... (ID: ${memory.id})`,
+            text: `- ${memory.type}: ${title ? title + ' - ' : ''}${preview} (ID: ${memory.id})`,
           });
         });
         
         return {
           content: responseContent,
-          memories,
-          count: memories.length,
         };
       } catch (error) {
         console.error('Error searching memories:', error);
@@ -207,7 +248,6 @@ function registerSearchMemoriesTool(server: McpServer) {
               text: `Failed to search memories: ${(error as Error).message}`,
             }
           ],
-          isError: true,
         };
       }
     }
@@ -242,7 +282,6 @@ function registerUpdateMemoryTool(server: McpServer) {
                 text: `Memory not found with ID: ${id}`,
               }
             ],
-            isError: true,
           };
         }
         
@@ -253,7 +292,6 @@ function registerUpdateMemoryTool(server: McpServer) {
               text: `Memory updated successfully with ID: ${id}`,
             }
           ],
-          memory: updatedMemory,
         };
       } catch (error) {
         console.error('Error updating memory:', error);
@@ -264,7 +302,6 @@ function registerUpdateMemoryTool(server: McpServer) {
               text: `Failed to update memory: ${(error as Error).message}`,
             }
           ],
-          isError: true,
         };
       }
     }
@@ -292,7 +329,6 @@ function registerDeleteMemoryTool(server: McpServer) {
                 text: `Memory not found or could not be deleted with ID: ${id}`,
               }
             ],
-            isError: true,
           };
         }
         
@@ -313,7 +349,6 @@ function registerDeleteMemoryTool(server: McpServer) {
               text: `Failed to delete memory: ${(error as Error).message}`,
             }
           ],
-          isError: true,
         };
       }
     }
@@ -366,7 +401,6 @@ function registerCreateRelationTool(server: McpServer) {
               text: `Failed to create relationship: ${(error as Error).message}`,
             }
           ],
-          isError: true,
         };
       }
     }
@@ -424,7 +458,6 @@ function registerGetRelatedMemoriesTool(server: McpServer) {
               text: `Failed to get related memories: ${(error as Error).message}`,
             }
           ],
-          isError: true,
         };
       }
     }

@@ -59,7 +59,15 @@ export class MemoryService {
     };
     
     // Ensure metadata is properly serialized
-    const metadata = newMemory.metadata ? JSON.stringify(newMemory.metadata) : '{}';
+    let metadataStr = '{}';
+    try {
+      // Make sure metadata is a valid object before stringifying
+      const metadataObj = newMemory.metadata || {};
+      metadataStr = JSON.stringify(metadataObj);
+    } catch (error: any) {
+      console.error('Error serializing metadata:', error);
+      metadataStr = '{}';
+    }
     
     const params = {
       id: newMemory.id,
@@ -67,7 +75,7 @@ export class MemoryService {
       content: newMemory.content || '',
       created: newMemory.created,
       updated: newMemory.updated,
-      metadata,
+      metadata: metadataStr,
       ...this.extractSpecificProperties(newMemory),
     };
     
@@ -489,145 +497,45 @@ export class MemoryService {
    * Parse node result from graph query
    */
   private parseNodeResult(node: any): MemoryNode {
-    if (!node) {
-      throw new Error('Invalid node result');
-    }
-    
-    console.debug('Parsing node result:', JSON.stringify(node, null, 2));
-    
-    // Handle different node result formats from Redis Graph
-    let nodeData: any = {};
-    let nodeType: MemoryNodeType;
-    
-    // Format 1: Node is an object with 'n' property (from RETURN n)
-    if (node.n && node.n.properties) {
-      nodeData = node.n.properties;
-      nodeType = node.n.labels[0] as MemoryNodeType;
-    }
-    // Format 2: Node is an object with 'related' property (from RETURN related)
-    else if (node.related && node.related.properties) {
-      nodeData = node.related.properties;
-      nodeType = node.related.labels[0] as MemoryNodeType;
-    }
-    // Format 3: Node is an object with properties and labels directly
-    else if (node.properties && node.labels) {
-      nodeData = node.properties;
-      nodeType = node.labels[0] as MemoryNodeType;
-    }
-    // Format 4: Node has direct properties (older format)
-    else if (node.id) {
-      nodeData = node;
-      nodeType = (node.type as MemoryNodeType) || MemoryNodeType.CONVERSATION;
-    }
-    else {
-      throw new Error(`Unrecognized node format: ${JSON.stringify(node)}`);
-    }
-    
-    // Create base node with safe property access
-    const baseNode: MemoryNode = {
-      id: nodeData.id,
-      type: nodeType,
-      content: nodeData.content || '',
-      created: nodeData.created || Date.now(),
-      updated: nodeData.updated || Date.now(),
-      metadata: {},
-    };
-    
-    // Safely parse metadata if it exists
-    if (nodeData.metadata) {
+    try {
+      const properties = node.properties || {};
+      
+      // Parse metadata safely
+      let metadata = {};
       try {
-        baseNode.metadata = typeof nodeData.metadata === 'string' 
-          ? JSON.parse(nodeData.metadata) 
-          : nodeData.metadata;
-      } catch (error) {
-        console.warn('Failed to parse metadata:', error);
-        baseNode.metadata = {};
+        if (properties.metadata && typeof properties.metadata === 'string') {
+          metadata = JSON.parse(properties.metadata);
+        }
+      } catch (error: any) {
+        console.error('Error parsing metadata:', error);
+        metadata = {};
       }
+      
+      return {
+        id: properties.id,
+        type: properties.type as MemoryNodeType,
+        content: properties.content || '',
+        created: properties.created || 0,
+        updated: properties.updated || 0,
+        metadata,
+        // Add other properties if they exist
+        ...(properties.name ? { name: properties.name } : {}),
+        ...(properties.title ? { title: properties.title } : {}),
+        ...(properties.description ? { description: properties.description } : {}),
+        ...(properties.summary ? { summary: properties.summary } : {}),
+        ...(properties.status ? { status: properties.status } : {}),
+        ...(properties.severity ? { severity: properties.severity } : {}),
+        ...(properties.key ? { key: properties.key } : {}),
+        ...(properties.value ? { value: properties.value } : {}),
+        ...(properties.environment ? { environment: properties.environment } : {}),
+        ...(properties.category ? { category: properties.category } : {}),
+        ...(properties.completed !== undefined ? { completed: properties.completed } : {}),
+        ...(properties.priority ? { priority: properties.priority } : {}),
+        ...(properties.dueDate ? { dueDate: properties.dueDate } : {}),
+      };
+    } catch (error: any) {
+      console.error('Error parsing node result:', error);
+      throw new Error(`Failed to parse node result: ${error.message}`);
     }
-    
-    // Add specific properties based on type
-    const specificNode = { ...baseNode };
-    
-    switch (baseNode.type) {
-      case MemoryNodeType.CONVERSATION:
-        if (nodeData.summary) {
-          (specificNode as any).summary = nodeData.summary;
-        }
-        break;
-        
-      case MemoryNodeType.PROJECT:
-        if (nodeData.name) {
-          (specificNode as any).name = nodeData.name;
-        }
-        if (nodeData.description) {
-          (specificNode as any).description = nodeData.description;
-        }
-        if (nodeData.status) {
-          (specificNode as any).status = nodeData.status;
-        }
-        break;
-        
-      case MemoryNodeType.TASK:
-        if (nodeData.title) {
-          (specificNode as any).title = nodeData.title;
-        }
-        if (nodeData.status) {
-          (specificNode as any).status = nodeData.status;
-        }
-        if (nodeData.dueDate) {
-          (specificNode as any).dueDate = nodeData.dueDate;
-        }
-        break;
-        
-      case MemoryNodeType.ISSUE:
-        if (nodeData.title) {
-          (specificNode as any).title = nodeData.title;
-        }
-        if (nodeData.severity) {
-          (specificNode as any).severity = nodeData.severity;
-        }
-        if (nodeData.status) {
-          (specificNode as any).status = nodeData.status;
-        }
-        break;
-        
-      case MemoryNodeType.CONFIG:
-        if (nodeData.key) {
-          (specificNode as any).key = nodeData.key;
-        }
-        if (nodeData.value) {
-          (specificNode as any).value = nodeData.value;
-        }
-        if (nodeData.environment) {
-          (specificNode as any).environment = nodeData.environment;
-        }
-        break;
-        
-      case MemoryNodeType.FINANCE:
-        if (nodeData.category) {
-          (specificNode as any).category = nodeData.category;
-        }
-        if (nodeData.amount) {
-          (specificNode as any).amount = nodeData.amount;
-        }
-        if (nodeData.currency) {
-          (specificNode as any).currency = nodeData.currency;
-        }
-        break;
-        
-      case MemoryNodeType.TODO:
-        if (nodeData.title) {
-          (specificNode as any).title = nodeData.title;
-        }
-        if (nodeData.completed !== undefined) {
-          (specificNode as any).completed = nodeData.completed;
-        }
-        if (nodeData.priority) {
-          (specificNode as any).priority = nodeData.priority;
-        }
-        break;
-    }
-    
-    return specificNode;
   }
 } 
