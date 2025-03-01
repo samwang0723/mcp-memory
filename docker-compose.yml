@@ -1,0 +1,14 @@
+version: '3'
+
+services:
+  redis:
+    image: redislabs/redisgraph:2.10.1
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis-data:/data
+    command: redis-server --loadmodule /usr/lib/redis/modules/redisgraph.so
+    restart: unless-stopped
+
+volumes:
+  redis-data:

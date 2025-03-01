@@ -1,0 +1,42 @@
+{
+  "name": "mcp-memory",
+  "version": "1.0.0",
+  "description": "MCP server for long term memory graph",
+  "main": "dist/index.js",
+  "scripts": {
+    "start": "node -r tsconfig-paths/register -r ./paths.js dist/index.js",
+    "dev": "ts-node -r tsconfig-paths/register src/index.ts",
+    "build": "tsc",
+    "lint": "eslint . --ext .ts",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "test:redis": "node scripts/test-redis-connection.js",
+    "test:memory": "node scripts/test-memory-operations.js",
+    "test:service": "node scripts/test-memory-service.js",
+    "inspect:graph": "node scripts/inspect-redis-graph.js",
+    "check:graph": "node scripts/check-graph.js",
+    "redis:cli": "./scripts/redis-cli-helper.sh"
+  },
+  "author": "sam.wang.0723@gmail.coms",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^22.13.5",
+    "@typescript-eslint/eslint-plugin": "^8.25.0",
+    "@typescript-eslint/parser": "^8.25.0",
+    "eslint": "^9.21.0",
+    "eslint-config-prettier": "^10.0.2",
+    "eslint-plugin-prettier": "^5.2.3",
+    "prettier": "^3.5.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.3"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.6.0",
+    "@types/uuid": "^10.0.0",
+    "dotenv": "^16.4.7",
+    "module-alias": "^2.2.3",
+    "redis": "^4.7.0",
+    "tsconfig-paths": "^4.2.0",
+    "uuid": "^11.1.0"
+  }
+}
