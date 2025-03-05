@@ -37,7 +37,7 @@ export class MemoryService {
       await this.graph.query('CREATE INDEX ON :Finance(id)');
       await this.graph.query('CREATE INDEX ON :Todo(id)');
       
-      console.log('Memory graph indices created successfully');
+      // console.log('Memory graph indices created successfully');
     } catch (error) {
       console.error('Failed to initialize memory graph:', error);
       throw error;
@@ -99,7 +99,7 @@ export class MemoryService {
       const result = await this.graph.query(query, { params }) as RedisGraphQueryResult;
       
       // Log the result for debugging
-      console.debug('Create memory result:', JSON.stringify(result, null, 2));
+      // console.debug('Create memory result:', JSON.stringify(result, null, 2));
       
       // The Redis Graph result structure is different than expected
       // The data is an array of objects with named properties
@@ -151,24 +151,24 @@ export class MemoryService {
     `;
     
     try {
-      console.log(`Retrieving memory with ID: ${id}`);
+      // console.log(`Retrieving memory with ID: ${id}`);
       const result = await this.graph.query(query, { params: { id } }) as RedisGraphQueryResult;
       
       // Log the entire result structure for debugging
-      console.debug('Full Redis Graph query result structure:', JSON.stringify(result, null, 2));
+      // console.debug('Full Redis Graph query result structure:', JSON.stringify(result, null, 2));
       
       if (!result.data || result.data.length === 0) {
-        console.log(`No memory found with ID: ${id}`);
+        // console.log(`No memory found with ID: ${id}`);
         return null;
       }
       
       // Log the first row structure
-      console.debug('First row structure:', JSON.stringify(result.data[0], null, 2));
+      // console.debug('First row structure:', JSON.stringify(result.data[0], null, 2));
       
       try {
         // The Redis Graph result structure has data as an array of objects
         const memory = this.parseNodeResult(result.data[0]);
-        console.debug('Parsed memory:', JSON.stringify(memory, null, 2));
+        // console.debug('Parsed memory:', JSON.stringify(memory, null, 2));
         return memory;
       } catch (parseError: any) {
         console.error(`Error parsing node result for ID ${id}:`, parseError);
@@ -229,34 +229,34 @@ export class MemoryService {
       ${limit}
     `;
     
-    console.log('Executing search query:', query);
-    console.log('With parameters:', JSON.stringify(params, null, 2));
+    // console.log('Executing search query:', query);
+    // console.log('With parameters:', JSON.stringify(params, null, 2));
     
     try {
       const result = await this.graph.query(query, { params }) as RedisGraphQueryResult;
       
       // Log the search result for debugging
-      console.debug('Search memories result structure:', JSON.stringify(result, null, 2));
+      // console.debug('Search memories result structure:', JSON.stringify(result, null, 2));
       
       if (!result.data) {
-        console.log('No data returned from search query');
+        // console.log('No data returned from search query');
         return [];
       }
       
-      console.log(`Found ${result.data.length} results in the search query`);
+      // console.log(`Found ${result.data.length} results in the search query`);
       
       const memories: MemoryNode[] = [];
       
       for (let i = 0; i < result.data.length; i++) {
         try {
           const row = result.data[i];
-          console.debug(`Processing result row ${i}:`, JSON.stringify(row, null, 2));
+          // console.debug(`Processing result row ${i}:`, JSON.stringify(row, null, 2));
           
           const memory = this.parseNodeResult(row);
           
           // Verify the memory has an ID before adding it
           if (!memory.id) {
-            console.error(`Memory at index ${i} has no ID:`, JSON.stringify(memory, null, 2));
+            // console.error(`Memory at index ${i} has no ID:`, JSON.stringify(memory, null, 2));
             continue;
           }
           
@@ -267,7 +267,7 @@ export class MemoryService {
         }
       }
       
-      console.log(`Successfully parsed ${memories.length} memories from search results`);
+      // console.log(`Successfully parsed ${memories.length} memories from search results`);
       return memories;
     } catch (error) {
       console.error('Failed to search memories:', error);
@@ -294,7 +294,7 @@ export class MemoryService {
       const result = await this.graph.query(query, { params: { id } }) as RedisGraphQueryResult;
       
       // Log the related memories result for debugging
-      console.debug('Get related memories result:', JSON.stringify(result, null, 2));
+      // console.debug('Get related memories result:', JSON.stringify(result, null, 2));
       
       if (!result.data) {
         return [];
@@ -379,7 +379,7 @@ export class MemoryService {
       const result = await this.graph.query(query, { params: { id } }) as RedisGraphQueryResult;
       
       // Log the delete result for debugging
-      console.debug('Delete memory result:', JSON.stringify(result, null, 2));
+      // console.debug('Delete memory result:', JSON.stringify(result, null, 2));
       
       // Check if the result has data and the deleted count
       if (!result.data || result.data.length === 0) {
@@ -532,8 +532,8 @@ export class MemoryService {
       const properties = nodeObject.properties || nodeObject || {};
       
       // Log the node structure for debugging
-      console.debug('Node structure in parseNodeResult:', JSON.stringify(nodeData, null, 2));
-      console.debug('Properties extracted:', JSON.stringify(properties, null, 2));
+      // console.debug('Node structure in parseNodeResult:', JSON.stringify(nodeData, null, 2));
+      // console.debug('Properties extracted:', JSON.stringify(properties, null, 2));
       
       // Parse metadata safely
       let metadata = {};
