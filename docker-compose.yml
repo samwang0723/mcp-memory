@@ -4,11 +4,18 @@ services:
   redis:
     image: redislabs/redisgraph:2.10.1
     ports:
-      - '6379:6379'
+      - '0.0.0.0:6379:6379'
     volumes:
       - redis-data:/data
-    command: redis-server --loadmodule /usr/lib/redis/modules/redisgraph.so
+    command: redis-server --loadmodule /usr/lib/redis/modules/redisgraph.so --bind 0.0.0.0
     restart: unless-stopped
+    networks:
+      - mcp-network
 
 volumes:
   redis-data:
+
+networks:
+  mcp-network:
+    name: mcp-network
+    driver: bridge

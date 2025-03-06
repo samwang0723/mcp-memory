@@ -5,7 +5,7 @@ import { registerMemoryTools } from './tools/memory-tools';
 import { MemoryService } from './services/memory-service';
 
 // Get Redis URL from environment variable or use default
-const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+const redisUrl = process.env.REDIS_URL || 'redis://host.docker.internal:6379';
 console.log(`Connecting to Redis at: ${redisUrl}`);
 
 // Create Redis client with explicit connection settings
@@ -78,7 +78,7 @@ initialize();
 
 // Handle graceful shutdown
 process.stdin.on('close', async () => {
-  console.error('Memory MCP Server closing...');
+  console.error('Memory MCP Server closed');
   server.close();
   await client.disconnect();
   console.log('Redis disconnected');
