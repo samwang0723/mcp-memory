@@ -33,7 +33,7 @@ export interface MemoryNode {
   created: number; // timestamp
   updated: number; // timestamp
   metadata: Record<string, any>;
-  
+
   // Common optional properties for all memory types
   name?: string;
   title?: string;
@@ -127,4 +127,6 @@ export interface MemorySearchCriteria {
   startDate?: number;
   endDate?: number;
   metadata?: Record<string, any>;
-} 
+  fuzzySearch?: boolean; // Enable or disable fuzzy search (default: true)
+  topResults?: number; // Limit to top N results by relevance score (default: 10)
+}
